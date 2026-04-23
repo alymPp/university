@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Productivity Dashboard Pro</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: rgba(18, 25, 47, 0.82);
+      --panel-strong: #121a31;
+      --panel-soft: #182242;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #edf2ff;
+      --muted: #a9b4d0;
+      --primary: #6ea8fe;
+      --primary-2: #8b5cf6;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      --radius-xl: 24px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: Inter, Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(110,168,254,0.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(139,92,246,0.18), transparent 24%),
+        linear-gradient(180deg, #09101d 0%, #0d1326 100%);
+      color: var(--text);
+      min-height: 100%;
+    }
+
+    body {
+      padding: 28px;
+    }
+
+    .app {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: grid;
+      gap: 22px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 20px;
+      align-items: stretch;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .hero-main {
+      padding: 30px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-main::after {
+      content: "";
+      position: absolute;
+      inset: auto -60px -60px auto;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(110,168,254,0.22), transparent 62%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border: 1px solid rgba(110, 168, 254, 0.25);
+      background: rgba(110, 168, 254, 0.08);
+      color: #dbeafe;
+      border-radius: 999px;
+      font-size: 13px;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(30px, 4vw, 46px);
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+
+    .lead {
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.7;
+      max-width: 70ch;
+    }
+
+    .hero-side {
+      padding: 24px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .info-box {
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.025));
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+    }
+
+    .info-box h3, .section-title {
+      margin: 0 0 10px;
+      font-size: 15px;
+      color: #dbeafe;
+      letter-spacing: 0.01em;
+    }
+
+    .muted {
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .sidebar {
+      padding: 20px;
+      position: sticky;
+      top: 24px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .upload-zone {
+      border: 1.5px dashed rgba(110, 168, 254, 0.35);
+      background: linear-gradient(180deg, rgba(110,168,254,0.08), rgba(139,92,246,0.05));
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      transition: 0.2s ease;
+    }
+
+    .upload-zone:hover {
+      transform: translateY(-1px);
+      border-color: rgba(110,168,254,0.55);
+    }
+
+    .upload-zone input[type="file"] {
+      width: 100%;
+      margin-top: 12px;
+      color: var(--muted);
+    }
+
+    .btn-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    button {
+      width: 100%;
+      border: none;
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      color: white;
+      transition: transform 0.16s ease, opacity 0.16s ease, box-shadow 0.16s ease;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.25);
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-primary { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+    .btn-secondary { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+    .btn-accent { background: linear-gradient(135deg, #0ea5e9, #06b6d4); }
+    .btn-ghost {
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      border: 1px solid var(--border);
+      box-shadow: none;
+    }
+
+    .main {
+      display: grid;
+      gap: 22px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .metric {
+      padding: 18px;
+      border-radius: var(--radius-lg);
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.03));
+      border: 1px solid var(--border);
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .metric-value {
+      font-size: clamp(24px, 3vw, 34px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .metric-sub {
+      margin-top: 6px;
+      color: #c7d2fe;
+      font-size: 12px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 22px;
+    }
+
+    .panel {
+      padding: 22px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: -0.02em;
+    }
+
+    .status-pill {
+      font-size: 12px;
+      color: #d1fae5;
+      border: 1px solid rgba(34,197,94,0.25);
+      background: rgba(34,197,94,0.08);
+      border-radius: 999px;
+      padding: 8px 10px;
+    }
+
+    .chart-wrap {
+      position: relative;
+      min-height: 350px;
+    }
+
+    .insight-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .insight {
+      padding: 14px 16px;
+      background: rgba(255,255,255,0.045);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      line-height: 1.55;
+      color: #e5edff;
+    }
+
+    .insight strong {
+      color: #93c5fd;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+      background: rgba(255,255,255,0.03);
+    }
+
+    th, td {
+      padding: 13px 14px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      font-size: 14px;
+    }
+
+    th {
+      color: #dbeafe;
+      background: rgba(110,168,254,0.08);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    td {
+      color: #d8e0f7;
+    }
+
+    .output {
+      background: #0a0f1d;
+      color: #dbeafe;
+      border: 1px solid rgba(110,168,254,0.15);
+      border-radius: 18px;
+      padding: 18px;
+      line-height: 1.6;
+      overflow: auto;
+      font-size: 13px;
+      min-height: 220px;
+      white-space: pre-wrap;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .empty-state {
+      padding: 28px;
+      border-radius: 18px;
+      border: 1px dashed rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.03);
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.7;
+    }
+
+    .footer-note {
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+      padding-bottom: 8px;
+    }
+
+    @media (max-width: 1180px) {
+      .hero,
+      .workspace,
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+      }
+    }
+
+    @media (max-width: 820px) {
+      body { padding: 16px; }
+      .hero-main, .hero-side, .panel, .sidebar { padding: 18px; }
+      .metrics { grid-template-columns: repeat(2, 1fr); }
+      .chart-wrap { min-height: 280px; }
+    }
+
+    @media (max-width: 560px) {
+      .metrics { grid-template-columns: 1fr; }
+      h1 { font-size: 30px; }
+      .lead { font-size: 15px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="hero">
+      <div class="hero-main card">
+        <div class="eyebrow">📊 Smart analytics dashboard</div>
+        <h1>Student Productivity ML Pipeline</h1>
+        <p class="lead">
+          Современный интерфейс для загрузки CSV, быстрого EDA, аналитики по производительности студентов
+          и feature engineering. Всё в одном аккуратном дашборде: понятная навигация, карточки с метриками,
+          графики и готовые инсайты.
+        </p>
+      </div>
+
+      <div class="hero-side card">
+        <div class="info-box">
+          <h3>Что умеет</h3>
+          <div class="muted">Загрузка CSV, статистика по числовым колонкам, анализ влияния phone usage, пола, стресса и сна, а также подготовка признаков для ML.</div>
+        </div>
+        <div class="info-box">
+          <h3>UX-фишки</h3>
+          <div class="muted">Крупные кнопки, визуальная иерархия, информативные статусы, таблица предпросмотра, график и понятный output вместо голого текста.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="workspace">
+      <aside class="sidebar card">
+        <div>
+          <div class="section-title">Управление</div>
+          <div class="muted">Сначала загрузи CSV-файл, потом запускай нужный этап анализа.</div>
+        </div>
+
+        <div class="upload-zone">
+          <div class="section-title">Загрузка датасета</div>
+          <div class="muted">Поддерживается CSV с колонками вроде productivity_score, stress_level, sleep_hours и т.д.</div>
+          <input type="file" id="fileInput" accept=".csv" />
+        </div>
+
+        <div class="btn-grid">
+          <button id="edaBtn" class="btn-primary" disabled>Run EDA</button>
+          <button id="analysisBtn" class="btn-secondary" disabled>Run Analysis</button>
+          <button id="featureBtn" class="btn-accent" disabled>Run Feature Engineering</button>
+          <button id="resetBtn" class="btn-ghost">Reset Dashboard</button>
+        </div>
+
+        <div class="info-box">
+          <h3>Подсказка</h3>
+          <div class="muted">Если график или расчёты не запускаются, проверь названия колонок в CSV. Внизу есть блок Preview, где можно быстро увидеть структуру данных.</div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <section class="metrics">
+          <div class="metric card">
+            <div class="metric-label">Rows loaded</div>
+            <div class="metric-value" id="rowsMetric">0</div>
+            <div class="metric-sub">Количество строк</div>
+          </div>
+          <div class="metric card">
+            <div class="metric-label">Columns</div>
+            <div class="metric-value" id="colsMetric">0</div>
+            <div class="metric-sub">Число колонок</div>
+          </div>
+          <div class="metric card">
+            <div class="metric-label">Avg productivity</div>
+            <div class="metric-value" id="avgMetric">—</div>
+            <div class="metric-sub">Среднее productivity_score</div>
+          </div>
+          <div class="metric card">
+            <div class="metric-label">Pipeline status</div>
+            <div class="metric-value" id="statusMetric">Idle</div>
+            <div class="metric-sub">Текущее состояние</div>
+          </div>
+        </section>
+
+        <section class="grid-2">
+          <div class="panel card">
+            <div class="panel-header">
+              <h2 class="panel-title">Distribution Overview</h2>
+              <div class="status-pill" id="chartStatus">Нет данных</div>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="histogram"></canvas>
+            </div>
+          </div>
+
+          <div class="panel card">
+            <div class="panel-header">
+              <h2 class="panel-title">Key Insights</h2>
+              <div class="status-pill" id="insightStatus">Ожидание</div>
+            </div>
+            <div class="insight-list" id="insightList">
+              <div class="empty-state">После загрузки файла и запуска анализа здесь появятся короткие выводы по датасету.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel card">
+          <div class="panel-header">
+            <h2 class="panel-title">Dataset Preview</h2>
+            <div class="toolbar">
+              <div class="status-pill" id="previewStatus">Пусто</div>
+            </div>
+          </div>
+          <div class="table-wrap" id="previewWrap">
+            <div class="empty-state">Здесь появятся первые строки CSV после загрузки.</div>
+          </div>
+        </section>
+
+        <section class="panel card">
+          <div class="panel-header">
+            <h2 class="panel-title">Technical Output</h2>
+            <div class="status-pill">JSON / summary</div>
+          </div>
+          <pre id="output" class="output">Загрузи CSV-файл, чтобы начать работу.</pre>
+        </section>
+      </main>
+    </section>
+
+    <div class="footer-note">Designed for a clearer UX/UI: easier to scan, easier to demo, easier to explain.</div>
+  </div>
+
+  <script>
+    let dataset = [];
+    let chartInstance = null;
+
+    const requiredButtons = {
+      eda: document.getElementById('edaBtn'),
+      analysis: document.getElementById('analysisBtn'),
+      feature: document.getElementById('featureBtn')
+    };
+
+    const el = {
+      rowsMetric: document.getElementById('rowsMetric'),
+      colsMetric: document.getElementById('colsMetric'),
+      avgMetric: document.getElementById('avgMetric'),
+      statusMetric: document.getElementById('statusMetric'),
+      chartStatus: document.getElementById('chartStatus'),
+      insightStatus: document.getElementById('insightStatus'),
+      previewStatus: document.getElementById('previewStatus'),
+      previewWrap: document.getElementById('previewWrap'),
+      output: document.getElementById('output'),
+      insightList: document.getElementById('insightList')
+    };
+
+    document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+    requiredButtons.eda.addEventListener('click', runEDA);
+    requiredButtons.analysis.addEventListener('click', runAnalysis);
+    requiredButtons.feature.addEventListener('click', runFeatureEngineering);
+    document.getElementById('resetBtn').addEventListener('click', resetDashboard);
+
+    function setStatus(text) {
+      el.statusMetric.textContent = text;
+    }
+
+    function setButtonsDisabled(disabled) {
+      Object.values(requiredButtons).forEach(btn => btn.disabled = disabled);
+    }
+
+    function handleFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      setStatus('Loading');
+      el.output.textContent = 'Чтение CSV...';
+
+      Papa.parse(file, {
+        header: true,
+        dynamicTyping: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+          dataset = results.data.filter(row => Object.values(row).some(v => v !== null && v !== ""));
+
+          if (!dataset.length) {
+            el.output.textContent = 'Файл загружен, но данных не найдено.';
+            setStatus('Empty');
+            return;
+          }
+
+          setButtonsDisabled(false);
+          updateMetrics();
+          renderPreview();
+          renderInsights([
+            'Файл успешно загружен.',
+            `Найдено ${dataset.length} строк данных.`,
+            'Теперь можно запускать EDA, Analysis и Feature Engineering.'
+          ]);
+
+          el.output.textContent = `Loaded rows: ${dataset.length}\nLoaded columns: ${Object.keys(dataset[0]).length}`;
+          el.previewStatus.textContent = 'Preview ready';
+          el.chartStatus.textContent = 'Готов к построению';
+          el.insightStatus.textContent = 'Базовые инсайты готовы';
+          setStatus('Ready');
+        },
+        error: function(err) {
+          el.output.textContent = 'Ошибка чтения файла: ' + err.message;
+          setStatus('Error');
+        }
+      });
+    }
+
+    function updateMetrics() {
+      if (!dataset.length) return;
+      const keys = Object.keys(dataset[0]);
+      el.rowsMetric.textContent = dataset.length;
+      el.colsMetric.textContent = keys.length;
+
+      if (hasColumn('productivity_score')) {
+        el.avgMetric.textContent = safeAvg(dataset, 'productivity_score').toFixed(2);
+      } else {
+        el.avgMetric.textContent = 'N/A';
+      }
+    }
+
+    function hasColumn(name) {
+      return dataset.length && Object.prototype.hasOwnProperty.call(dataset[0], name);
+    }
+
+    function getNumericColumns() {
+      if (!dataset.length) return [];
+      const sample = dataset.find(row => row && Object.keys(row).length) || dataset[0];
+      return Object.keys(sample).filter(key => dataset.some(row => typeof row[key] === 'number' && !Number.isNaN(row[key])));
+    }
+
+    function runEDA() {
+      if (!dataset.length) return;
+      setStatus('EDA');
+
+      const numericCols = getNumericColumns();
+      const stats = {};
+
+      numericCols.forEach(col => {
+        const values = dataset
+          .map(d => d[col])
+          .filter(v => typeof v === 'number' && !Number.isNaN(v));
+
+        if (!values.length) return;
+
+        stats[col] = {
+          min: Math.min(...values),
+          max: Math.max(...values),
+          avg: values.reduce((a, b) => a + b, 0) / values.length
+        };
+      });
+
+      buildHistogram();
+      renderInsights(buildEDAInsights(stats));
+      el.output.textContent = 'EDA Summary\n\n' + JSON.stringify(stats, null, 2);
+      el.chartStatus.textContent = hasColumn('productivity_score') ? 'Histogram ready' : 'Нет productivity_score';
+      el.insightStatus.textContent = 'EDA инсайты обновлены';
+    }
+
+    function buildHistogram() {
+      const canvas = document.getElementById('histogram');
+      const ctx = canvas.getContext('2d');
+
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      if (!hasColumn('productivity_score')) {
+        chartInstance = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: ['No data'],
+            datasets: [{ label: 'Productivity Distribution', data: [0], borderRadius: 10 }]
+          },
+          options: baseChartOptions('В датасете нет колонки productivity_score')
+        });
+        return;
+      }
+
+      const bins = {};
+      dataset.forEach(d => {
+        const value = d.productivity_score;
+        if (typeof value !== 'number' || Number.isNaN(value)) return;
+        const bin = Math.floor(value / 10) * 10;
+        bins[bin] = (bins[bin] || 0) + 1;
+      });
+
+      const labels = Object.keys(bins).sort((a, b) => Number(a) - Number(b));
+      const data = labels.map(label => bins[label]);
+
+      chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Productivity Distribution',
+            data,
+            borderRadius: 12,
+            backgroundColor: [
+              'rgba(110,168,254,0.8)',
+              'rgba(96,165,250,0.8)',
+              'rgba(59,130,246,0.8)',
+              'rgba(37,99,235,0.8)',
+              'rgba(14,165,233,0.8)',
+              'rgba(139,92,246,0.8)',
+              'rgba(124,58,237,0.8)'
+            ]
+          }]
+        },
+        options: baseChartOptions('Histogram of productivity_score')
+      });
+    }
+
+    function baseChartOptions(titleText) {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            labels: { color: '#dbeafe' }
+          },
+          title: {
+            display: true,
+            text: titleText,
+            color: '#edf2ff',
+            font: { size: 16, weight: '700' }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#cbd5e1' },
+            grid: { color: 'rgba(255,255,255,0.06)' }
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color: '#cbd5e1' },
+            grid: { color: 'rgba(255,255,255,0.06)' }
+          }
+        }
+      };
+    }
+
+    function runAnalysis() {
+      if (!dataset.length) return;
+      setStatus('Analysis');
+
+      const messages = [];
+
+      const avgHigh = hasColumn('phone_usage_hours') && hasColumn('productivity_score')
+        ? safeAvg(dataset.filter(d => d.phone_usage_hours > 5), 'productivity_score')
+        : null;
+
+      const avgLow = hasColumn('phone_usage_hours') && hasColumn('productivity_score')
+        ? safeAvg(dataset.filter(d => d.phone_usage_hours < 2), 'productivity_score')
+        : null;
+
+      const genderResults = {};
+      if (hasColumn('gender') && hasColumn('productivity_score')) {
+        const genders = {};
+        dataset.forEach(d => {
+          if (!genders[d.gender]) genders[d.gender] = [];
+          genders[d.gender].push(d);
+        });
+
+        for (const g in genders) {
+          genderResults[g] = safeAvg(genders[g], 'productivity_score');
+        }
+      }
+
+      const comboResults = [];
+      if (hasColumn('stress_level') && hasColumn('sleep_hours') && hasColumn('productivity_score')) {
+        const combos = {};
+        dataset.forEach(d => {
+          const key = `${d.stress_level}_${d.sleep_hours}`;
+          if (!combos[key]) combos[key] = [];
+          combos[key].push(d);
+        });
+
+        for (const key in combos) {
+          comboResults.push({
+            combo: key,
+            avgProductivity: safeAvg(combos[key], 'productivity_score')
+          });
+        }
+
+        comboResults.sort((a, b) => b.avgProductivity - a.avgProductivity);
+      }
+
+      if (avgHigh !== null && avgLow !== null) {
+        messages.push(`При высоком использовании телефона (>5 ч) средняя продуктивность: ${avgHigh.toFixed(2)}`);
+        messages.push(`При низком использовании телефона (<2 ч) средняя продуктивность: ${avgLow.toFixed(2)}`);
+      }
+
+      if (Object.keys(genderResults).length) {
+        const bestGender = Object.entries(genderResults).sort((a, b) => b[1] - a[1])[0];
+        messages.push(`По группировке gender лидирует: ${bestGender[0]} (${bestGender[1].toFixed(2)})`);
+      }
+
+      if (comboResults.length) {
+        messages.push(`Лучшая комбинация stress + sleep: ${comboResults[0].combo} → ${comboResults[0].avgProductivity.toFixed(2)}`);
+      }
+
+      renderInsights(messages.length ? messages : ['Недостаточно подходящих колонок для runAnalysis().']);
+
+      el.output.textContent =
+        'Analysis Summary\n\n' +
+        `Avg Productivity (Phone >5h): ${avgHigh !== null ? avgHigh.toFixed(2) : 'N/A'}\n` +
+        `Avg Productivity (Phone <2h): ${avgLow !== null ? avgLow.toFixed(2) : 'N/A'}\n\n` +
+        'Gender Productivity:\n' + JSON.stringify(genderResults, null, 2) + '\n\n' +
+        'Top 5 Stress+Sleep Combos:\n' + JSON.stringify(comboResults.slice(0, 5), null, 2);
+
+      el.insightStatus.textContent = 'Аналитика обновлена';
+    }
+
+    function runFeatureEngineering() {
+      if (!dataset.length) return;
+      setStatus('Features');
+
+      if (!hasColumn('gender')) {
+        el.output.textContent = 'Feature Engineering\n\nКолонка gender не найдена.';
+        renderInsights(['Для feature engineering нужна хотя бы колонка gender для кодирования.']);
+        return;
+      }
+
+      const uniqueGenders = [...new Set(dataset.map(d => d.gender).filter(Boolean))];
+      const genderMap = {};
+      uniqueGenders.forEach((g, i) => genderMap[g] = i);
+
+      dataset.forEach(d => {
+        d.gender_index = genderMap[d.gender];
+        d.gender_vec = uniqueGenders.map(g => d.gender === g ? 1 : 0);
+      });
+
+      const preferredNumericFeatures = [
+        'study_hours_per_day',
+        'phone_usage_hours',
+        'stress_level',
+        'focus_score',
+        'sleep_hours'
+      ].filter(hasColumn);
+
+      const mins = {};
+      const maxs = {};
+
+      preferredNumericFeatures.forEach(col => {
+        const values = dataset.map(d => d[col]).filter(v => typeof v === 'number' && !Number.isNaN(v));
+        mins[col] = Math.min(...values);
+        maxs[col] = Math.max(...values);
+      });
+
+      dataset.forEach(d => {
+        preferredNumericFeatures.forEach(col => {
+          const denominator = maxs[col] - mins[col];
+          d[col + '_scaled'] = denominator === 0 ? 0 : (d[col] - mins[col]) / denominator;
+        });
+      });
+
+      dataset.forEach(d => {
+        d.features = [
+          ...preferredNumericFeatures.map(col => d[col + '_scaled']),
+          ...d.gender_vec
+        ];
+      });
+
+      renderInsights([
+        `One-hot encoding выполнен для ${uniqueGenders.length} gender categories.`,
+        `Scaled features: ${preferredNumericFeatures.join(', ') || 'нет доступных числовых полей'}.`,
+        'Финальный features vector собран и готов для ML-пайплайна.'
+      ]);
+
+      el.output.textContent =
+        'Feature Engineering Summary\n\n' +
+        JSON.stringify({
+          genderMap,
+          scaledFeatures: preferredNumericFeatures,
+          sampleFeatureVector: dataset[0]?.features || []
+        }, null, 2);
+
+      el.insightStatus.textContent = 'Features подготовлены';
+    }
+
+    function renderPreview() {
+      if (!dataset.length) return;
+      const rows = dataset.slice(0, 6);
+      const columns = Object.keys(rows[0]);
+
+      let html = '<table><thead><tr>';
+      columns.forEach(col => html += `<th>${escapeHtml(col)}</th>`);
+      html += '</tr></thead><tbody>';
+
+      rows.forEach(row => {
+        html += '<tr>';
+        columns.forEach(col => {
+          const value = row[col] ?? '';
+          html += `<td>${escapeHtml(String(value))}</td>`;
+        });
+        html += '</tr>';
+      });
+
+      html += '</tbody></table>';
+      el.previewWrap.innerHTML = html;
+    }
+
+    function renderInsights(items) {
+      el.insightList.innerHTML = items.map(item => `<div class="insight">${highlightInsight(item)}</div>`).join('');
+    }
+
+    function highlightInsight(text) {
+      return escapeHtml(text)
+        .replace(/(средняя продуктивность|лидирует|лучшая комбинация|успешно загружен|готов для ML-пайплайна|Scaled features)/gi, '<strong>$1</strong>');
+    }
+
+    function buildEDAInsights(stats) {
+      const messages = [];
+      const cols = Object.keys(stats);
+      if (!cols.length) {
+        return ['В датасете не найдено числовых колонок для EDA.'];
+      }
+
+      messages.push(`Найдено ${cols.length} числовых колонок для статистического анализа.`);
+
+      if (stats.productivity_score) {
+        messages.push(`Средняя продуктивность по датасету: ${stats.productivity_score.avg.toFixed(2)}.`);
+      }
+      if (stats.phone_usage_hours) {
+        messages.push(`Phone usage: min ${stats.phone_usage_hours.min}, max ${stats.phone_usage_hours.max}, avg ${stats.phone_usage_hours.avg.toFixed(2)}.`);
+      }
+      if (stats.sleep_hours) {
+        messages.push(`Sleep hours в среднем: ${stats.sleep_hours.avg.toFixed(2)}.`);
+      }
+      return messages;
+    }
+
+    function safeAvg(arr, col) {
+      const values = arr.map(item => item[col]).filter(v => typeof v === 'number' && !Number.isNaN(v));
+      if (!values.length) return 0;
+      return values.reduce((a, b) => a + b, 0) / values.length;
+    }
+
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function resetDashboard() {
+      dataset = [];
+      if (chartInstance) {
+        chartInstance.destroy();
+        chartInstance = null;
+      }
+      document.getElementById('fileInput').value = '';
+      setButtonsDisabled(true);
+      el.rowsMetric.textContent = '0';
+      el.colsMetric.textContent = '0';
+      el.avgMetric.textContent = '—';
+      el.statusMetric.textContent = 'Idle';
+      el.chartStatus.textContent = 'Нет данных';
+      el.insightStatus.textContent = 'Ожидание';
+      el.previewStatus.textContent = 'Пусто';
+      el.previewWrap.innerHTML = '<div class="empty-state">Здесь появятся первые строки CSV после загрузки.</div>';
+      el.insightList.innerHTML = '<div class="empty-state">После загрузки файла и запуска анализа здесь появятся короткие выводы по датасету.</div>';
+      el.output.textContent = 'Загрузи CSV-файл, чтобы начать работу.';
+    }
+  </script>
+</body>
+</html>
